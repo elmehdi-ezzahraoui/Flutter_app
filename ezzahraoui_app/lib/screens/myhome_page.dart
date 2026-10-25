@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_design.dart';
 import 'chatbot_page.dart';
+import 'map_page.dart';
 
 // Définition de la page de profil utilisateur (Widget sans état)
 class ProfilePage extends StatelessWidget {
@@ -35,6 +36,23 @@ class ProfilePage extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.location_on_rounded, color: Colors.white),
+              tooltip: 'Ma Position (Google Maps)',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MapPage()),
+                );
+              },
+            ),
+          ),
           Container(
             margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(

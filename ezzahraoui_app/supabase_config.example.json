@@ -1,5 +1,6 @@
 {
   "SUPABASE_URL": "https://your-project.supabase.co",
   "SUPABASE_PUBLISHABLE_KEY": "your-supabase-publishable-key",
-  "AI_API_KEY": "your-groq-or-openai-api-key"
+  "AI_API_KEY": "your-groq-or-openai-api-key",
+  "MAPS_API_KEY": "your-google-maps-api-key"
 }
