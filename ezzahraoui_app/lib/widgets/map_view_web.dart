@@ -110,11 +110,21 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
 
   <script>
     let mapInitialized = false;
+    let leafletLoaded = false;
 
     // Moteur interactif universel (Leaflet / OpenStreetMap)
     function loadLeafletMap(statusText) {
-      if (mapInitialized) return;
-      mapInitialized = true;
+      if (leafletLoaded) return;
+      leafletLoaded = true;
+
+      const mapContainer = document.getElementById('map');
+      if (mapContainer) {
+        mapContainer.innerHTML = '';
+        mapContainer.className = '';
+        mapContainer.removeAttribute('style');
+        mapContainer.style.height = '100%';
+        mapContainer.style.width = '100%';
+      }
 
       const badge = document.getElementById('badge');
       if (badge && statusText) badge.innerText = statusText;
@@ -140,17 +150,64 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
       ).openPopup();
     }
 
-    // Gestionnaire en cas d'erreur de clé Google Maps
+    // 1. Capture instantanée de la console pour les erreurs de clé / facturation Google Maps
+    const originalConsoleError = console.error;
+    console.error = function() {
+      originalConsoleError.apply(console, arguments);
+      for (let i = 0; i < arguments.length; i++) {
+        const msg = String(arguments[i]);
+        if (msg.includes('Google Maps') || msg.includes('MapError') || msg.includes('BillingNotEnabled')) {
+          loadLeafletMap('📍 Position GPS en direct');
+          break;
+        }
+      }
+    };
+
+    // 2. Gestionnaire standard d'authentification Google Maps
     window.gm_authFailure = function() {
-      console.warn("Google Maps ApiNotActivatedMapError. Basculement fluide vers la carte interactive...");
+      console.warn("Échec d'authentification Google Maps. Basculement fluide vers la carte interactive...");
       loadLeafletMap('📍 Position GPS en direct');
     };
+
+    // 3. Intercepteur automatique de l'écran gris (vérifie toutes les 100ms = 0,1 seconde)
+    const grayScreenChecker = setInterval(function() {
+      if (leafletLoaded) {
+        clearInterval(grayScreenChecker);
+        return;
+      }
+      
+      const bodyText = (document.body && document.body.innerText) ? document.body.innerText : '';
+      const mapElem = document.getElementById('map');
+      const mapHtml = (mapElem && mapElem.innerHTML) ? mapElem.innerHTML : '';
+      
+      const hasGrayError = 
+        document.querySelector('.gm-err-container') !== null ||
+        document.querySelector('.dismissButton') !== null ||
+        document.querySelector('[src*="icon_error"]') !== null ||
+        bodyText.includes('Petit problème') ||
+        bodyText.includes("ne s'est pas chargé") ||
+        bodyText.includes('Oops! Something went wrong') ||
+        bodyText.includes('For development purposes only') ||
+        mapHtml.includes('gm-err');
+
+      if (hasGrayError) {
+        clearInterval(grayScreenChecker);
+        loadLeafletMap('📍 Position GPS en direct');
+      }
+    }, 100);
+
+    // Timeout de sécurité au bout de 1s
+    setTimeout(function() {
+      clearInterval(grayScreenChecker);
+      if (!leafletLoaded && (!mapInitialized || document.querySelector('.gm-err-container'))) {
+        loadLeafletMap('📍 Position GPS en direct');
+      }
+    }, 1000);
 
     // Chargement de Google Maps si la clé est fournie
     if ("$key".length > 10) {
       window.initGoogleMap = function() {
         try {
-          mapInitialized = true;
           const pos = { lat: $lat, lng: $lng };
           const map = new google.maps.Map(document.getElementById('map'), {
             zoom: 16,
@@ -180,6 +237,7 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
 
           const badge = document.getElementById('badge');
           if (badge) badge.innerText = '🗺️ Google Maps Actif';
+          mapInitialized = true;
         } catch (e) {
           loadLeafletMap('📍 Position GPS en direct');
         }
@@ -192,14 +250,8 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
         loadLeafletMap('📍 Position GPS en direct');
       };
       document.head.appendChild(gScript);
-
-      // Si Google Maps ne répond pas ou est bloqué (ApiNotActivatedMapError) après 1.8s, afficher la carte
-      setTimeout(function() {
-        if (!mapInitialized) {
-          loadLeafletMap('📍 Position GPS en direct');
-        }
-      }, 1800);
     } else {
+      // Pas de clé API → Leaflet directement, sans attendre Google Maps
       loadLeafletMap('📍 Position GPS en direct');
     }
   </script>

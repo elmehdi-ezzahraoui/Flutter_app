@@ -147,107 +147,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-  void _showApiKeyDialog() {
-    final keyController = TextEditingController(text: _openAiService.apiKey);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.vpn_key_rounded, color: kPrimary),
-            const SizedBox(width: 10),
-            Text(
-              'Clé API (${_openAiService.providerName})',
-              style: const TextStyle(fontSize: 18),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Entrez votre clé API Groq (gsk_...) ou OpenAI (sk-...) :',
-                style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: keyController,
-                obscureText: true,
-                maxLines: 1,
-                decoration: InputDecoration(
-                  labelText: 'Clé API (Groq ou OpenAI)',
-                  hintText: 'gsk_... ou sk-...',
-                  prefixIcon: const Icon(Icons.key, color: kPrimary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Astuce : Les clés Groq (gsk_...) offrent des réponses quasi-instantanées !',
-                style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _openAiService.resetApiKeyToDefault();
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Clé par défaut réinitialisée'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text(
-              'Par défaut',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              final newKey = keyController.text.trim();
-              if (newKey.isNotEmpty) {
-                _openAiService.setApiKey(newKey);
-                Navigator.pop(ctx);
-                setState(() {
-                  _lastError = null;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Clé API ${_openAiService.providerName} mise à jour avec succès !',
-                    ),
-                    backgroundColor: kPrimary,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -391,11 +290,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
         ],
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.vpn_key_outlined, color: Colors.white),
-          tooltip: 'Changer la clé API',
-          onPressed: _showApiKeyDialog,
-        ),
         IconButton(
           icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
           tooltip: 'Effacer la discussion',
@@ -620,24 +514,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
           Text(
             error,
             style: const TextStyle(fontSize: 13, color: Color(0xFF7F1D1D)),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: kPrimaryDark,
-              elevation: 0,
-              side: const BorderSide(color: Color(0xFFFCA5A5)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            icon: const Icon(Icons.key, size: 16, color: kPrimary),
-            label: const Text(
-              'Modifier la clé API',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            onPressed: _showApiKeyDialog,
           ),
         ],
       ),
