@@ -7,12 +7,16 @@ Widget buildPlatformMapView({
   required double latitude,
   required double longitude,
   required String apiKey,
+  String? city,
+  String? neighborhood,
   VoidCallback? onOpenExternal,
 }) {
   return _WebGoogleMapView(
     latitude: latitude,
     longitude: longitude,
     apiKey: apiKey,
+    city: city,
+    neighborhood: neighborhood,
   );
 }
 
@@ -20,11 +24,15 @@ class _WebGoogleMapView extends StatefulWidget {
   final double latitude;
   final double longitude;
   final String apiKey;
+  final String? city;
+  final String? neighborhood;
 
   const _WebGoogleMapView({
     required this.latitude,
     required this.longitude,
     required this.apiKey,
+    this.city,
+    this.neighborhood,
   });
 
   @override
@@ -45,7 +53,9 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.latitude != widget.latitude ||
         oldWidget.longitude != widget.longitude ||
-        oldWidget.apiKey != widget.apiKey) {
+        oldWidget.apiKey != widget.apiKey ||
+        oldWidget.city != widget.city ||
+        oldWidget.neighborhood != widget.neighborhood) {
       setState(() {
         _registerView();
       });
@@ -141,11 +151,22 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
         iconAnchor: [10, 10]
       });
 
+      const cityVal = "${widget.city ?? ''}";
+      const neighVal = "${widget.neighborhood ?? ''}";
+      let locationHeader = '<b style="color: #1E1B4B; font-size: 13.5px;">📍 Votre Position Actuelle</b>';
+      if (cityVal.length > 0) {
+        locationHeader += '<div style="margin-top: 4px; font-weight: 600; color: #4F46E5; font-size: 13px;">🏙️ ' + cityVal;
+        if (neighVal.length > 0) {
+          locationHeader += ' • ' + neighVal;
+        }
+        locationHeader += '</div>';
+      }
+
       const marker = L.marker([$lat, $lng], { icon: customIcon }).addTo(map);
       marker.bindPopup(
         '<div style="font-family: sans-serif; padding: 4px; font-size: 13px;">' +
-        '<b style="color: #1E1B4B;">📍 Votre Position Actuelle</b><br>' +
-        '<span style="color: #6B7280; font-size: 12px;">Lat : $lat<br>Lng : $lng</span>' +
+        locationHeader +
+        '<div style="color: #6B7280; font-size: 11.5px; margin-top: 4px;">Lat : $lat<br>Lng : $lng</div>' +
         '</div>'
       ).openPopup();
     }
@@ -225,11 +246,21 @@ class _WebGoogleMapViewState extends State<_WebGoogleMapView> {
             animation: google.maps.Animation.DROP,
           });
 
+          const cityVal = "${widget.city ?? ''}";
+          const neighVal = "${widget.neighborhood ?? ''}";
+          let gInfoContent = '<div style="padding: 6px; font-family: sans-serif; font-size: 13px;">' +
+                             '<strong style="color: #1e1b4b;">📍 Votre Position Actuelle</strong>';
+          if (cityVal.length > 0) {
+            gInfoContent += '<br><span style="color: #4F46E5; font-weight: 600;">🏙️ ' + cityVal;
+            if (neighVal.length > 0) {
+              gInfoContent += ' • ' + neighVal;
+            }
+            gInfoContent += '</span>';
+          }
+          gInfoContent += '<br><span style="color: #64748b; font-size: 11.5px;">Lat : $lat, Lng : $lng</span></div>';
+
           const infoWindow = new google.maps.InfoWindow({
-            content: '<div style="padding: 6px; font-family: sans-serif; font-size: 13px;">' +
-                     '<strong style="color: #1e1b4b;">📍 Votre Position Actuelle</strong><br>' +
-                     '<span style="color: #64748b;">Lat : $lat, Lng : $lng</span>' +
-                     '</div>'
+            content: gInfoContent
           });
 
           infoWindow.open(map, marker);

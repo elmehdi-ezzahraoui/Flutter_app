@@ -6,6 +6,8 @@ class GoogleMapView extends StatelessWidget {
   final double latitude;
   final double longitude;
   final String apiKey;
+  final String? city;
+  final String? neighborhood;
   final VoidCallback? onOpenExternal;
 
   const GoogleMapView({
@@ -13,6 +15,8 @@ class GoogleMapView extends StatelessWidget {
     required this.latitude,
     required this.longitude,
     required this.apiKey,
+    this.city,
+    this.neighborhood,
     this.onOpenExternal,
   });
 
@@ -22,6 +26,8 @@ class GoogleMapView extends StatelessWidget {
       latitude: latitude,
       longitude: longitude,
       apiKey: apiKey,
+      city: city,
+      neighborhood: neighborhood,
       onOpenExternal: onOpenExternal,
     );
   }

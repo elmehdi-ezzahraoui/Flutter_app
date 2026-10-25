@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import '../theme/app_design.dart';
 
@@ -5,6 +6,8 @@ Widget buildPlatformMapView({
   required double latitude,
   required double longitude,
   required String apiKey,
+  String? city,
+  String? neighborhood,
   VoidCallback? onOpenExternal,
 }) {
   return Container(
@@ -26,10 +29,10 @@ Widget buildPlatformMapView({
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Google Maps',
-            style: TextStyle(
-              fontSize: 20,
+          Text(
+            city != null ? '$city ${neighborhood != null ? "• $neighborhood" : ""}' : 'Carte Interactive',
+            style: const TextStyle(
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: kPrimaryDark,
             ),

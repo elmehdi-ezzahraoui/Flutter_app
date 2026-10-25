@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,6 +21,8 @@ class _MapPageState extends State<MapPage> {
   double _longitude = -7.603869;
   double? _accuracy;
   String _locationLabel = 'Chargement de la position...';
+  String? _city;
+  String? _neighborhood;
   bool _isLoading = true;
 
   @override
@@ -39,6 +42,8 @@ class _MapPageState extends State<MapPage> {
           _longitude = loc.longitude;
           _accuracy = loc.accuracy;
           _locationLabel = loc.label;
+          _city = loc.city;
+          _neighborhood = loc.neighborhood;
           _isLoading = false;
         });
       }
@@ -46,6 +51,8 @@ class _MapPageState extends State<MapPage> {
       if (mounted) {
         setState(() {
           _locationLabel = 'Position par défaut (Casablanca)';
+          _city = 'Casablanca';
+          _neighborhood = 'Centre-ville';
           _isLoading = false;
         });
       }
@@ -94,99 +101,6 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  void _showApiKeyDialog() {
-    final keyController = TextEditingController(text: _locationService.apiKey);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.vpn_key_rounded, color: kPrimary),
-            SizedBox(width: 10),
-            Text('Clé Google Maps', style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Entrez votre clé API Google Maps (AIzaSy...) :',
-                style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: keyController,
-                obscureText: true,
-                maxLines: 1,
-                decoration: InputDecoration(
-                  labelText: 'Google Maps API Key',
-                  hintText: 'AIzaSy...',
-                  prefixIcon: const Icon(Icons.map, color: kPrimary),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Vous pouvez gérer vos clés sur console.cloud.google.com',
-                style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              _locationService.resetApiKeyToDefault();
-              Navigator.pop(ctx);
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Clé par défaut réinitialisée'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            child: const Text('Par défaut', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kPrimary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              final newKey = keyController.text.trim();
-              if (newKey.isNotEmpty) {
-                _locationService.setApiKey(newKey);
-                Navigator.pop(ctx);
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Clé Google Maps mise à jour !'),
-                    backgroundColor: kPrimary,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: const Text('Enregistrer'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -195,10 +109,10 @@ class _MapPageState extends State<MapPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Bandeau d'information GPS
+            // Bandeau d'information GPS (Ville, Quartier, Coordonnées)
             _buildLocationInfoBar(),
 
-            // Carte Google Maps interactive
+            // Carte interactive
             Expanded(
               child: Stack(
                 children: [
@@ -206,6 +120,8 @@ class _MapPageState extends State<MapPage> {
                     latitude: _latitude,
                     longitude: _longitude,
                     apiKey: _locationService.apiKey,
+                    city: _city,
+                    neighborhood: _neighborhood,
                     onOpenExternal: _openGoogleMapsExternal,
                   ),
                   if (_isLoading)
@@ -244,27 +160,27 @@ class _MapPageState extends State<MapPage> {
         icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.location_on_rounded, color: Colors.white, size: 26),
-          SizedBox(width: 10),
+          const Icon(Icons.location_on_rounded, color: Colors.white, size: 26),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Ma Position',
-                  style: TextStyle(
+                  _city != null ? '$_city' : 'Ma Position',
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 Text(
-                  'Google Maps • GPS en direct',
-                  style: TextStyle(
-                    fontSize: 11,
+                  _neighborhood != null ? 'Quartier : $_neighborhood' : 'GPS en direct',
+                  style: const TextStyle(
+                    fontSize: 11.5,
                     color: Colors.white70,
                     fontWeight: FontWeight.w400,
                   ),
@@ -280,12 +196,7 @@ class _MapPageState extends State<MapPage> {
           tooltip: 'Actualiser la position',
           onPressed: _refreshLocation,
         ),
-        IconButton(
-          icon: const Icon(Icons.vpn_key_outlined, color: Colors.white),
-          tooltip: 'Clé Google Maps',
-          onPressed: _showApiKeyDialog,
-        ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 6),
       ],
     );
   }
@@ -306,15 +217,15 @@ class _MapPageState extends State<MapPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0xFF10B981).withOpacity(0.12),
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.gps_fixed_rounded,
+              Icons.location_city_rounded,
               color: Color(0xFF10B981),
-              size: 20,
+              size: 22,
             ),
           ),
           const SizedBox(width: 12),
@@ -324,12 +235,17 @@ class _MapPageState extends State<MapPage> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      _locationLabel,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1F2937),
+                    Flexible(
+                      child: Text(
+                        _city != null
+                            ? (_neighborhood != null ? '$_city • $_neighborhood' : _city!)
+                            : _locationLabel,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1F2937),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (_accuracy != null) ...[
@@ -356,13 +272,37 @@ class _MapPageState extends State<MapPage> {
                   ],
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  '${_latitude.toStringAsFixed(5)}, ${_longitude.toStringAsFixed(5)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF6B7280),
-                    fontFamily: 'monospace',
-                  ),
+                Row(
+                  children: [
+                    if (_neighborhood != null && _city != null) ...[
+                      const Text(
+                        'Quartier : ',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: kPrimary,
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          '$_neighborhood  ',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF4B5563),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                    Text(
+                      '${_latitude.toStringAsFixed(5)}, ${_longitude.toStringAsFixed(5)}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF9CA3AF),
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
