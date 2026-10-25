@@ -47,5 +47,9 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Local Supabase configuration
+# Local Supabase & AI configuration (API keys)
 /supabase_config.json
+/ai_config.json
+*.env
+*.env.*
+*.secret.json

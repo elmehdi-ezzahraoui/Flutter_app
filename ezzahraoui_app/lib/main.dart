@@ -5,6 +5,7 @@ import 'services/auth_service.dart';
 import 'theme/app_design.dart';
 import 'screens/myhome_page.dart';
 import 'screens/login_page.dart';
+import 'screens/chatbot_page.dart';
 
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabasePublishableKey = String.fromEnvironment(
@@ -144,6 +145,25 @@ class _CounterPageState extends State<CounterPage> {
           'Accueil',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.smart_toy_rounded, color: Colors.white),
+              tooltip: 'Assistant Chatbot IA',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatbotPage()),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -172,6 +192,93 @@ class _CounterPageState extends State<CounterPage> {
                       label: 'Dernière action',
                       value: _lastAction,
                     ),
+                    const SizedBox(height: 6),
+                    // Carte raccourci vers le Chatbot IA
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [kPrimaryDark, kPrimary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: kPrimary.withOpacity(0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ChatbotPage(),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.smart_toy_rounded,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Assistant IA Intelligent',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Discuter avec le Chatbot (Groq & OpenAI)',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white70,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -197,13 +304,33 @@ class _CounterPageState extends State<CounterPage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [kPrimaryDark, kPrimary]),
             ),
-            child: Text(
-              'Menu de Navigation',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    'Menu de Navigation',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                CircleAvatar(
+                  radius: 38,
+                  backgroundImage: AssetImage('assets/image.webp'),
+                ),
+                Text(
+                  'EZ-ZAHRAOUI El-Mehdi',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
           ListTile(
@@ -214,6 +341,21 @@ class _CounterPageState extends State<CounterPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const ProfilePage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.smart_toy_rounded, color: kPrimary),
+            title: const Text('Assistant Chatbot IA'),
+            subtitle: const Text(
+              'Discuter avec l’IA (Groq / OpenAI)',
+              style: TextStyle(fontSize: 11),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatbotPage()),
               );
             },
           ),

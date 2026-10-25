@@ -1,0 +1,5 @@
+{
+  "SUPABASE_URL": "https://your-project.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "your-supabase-publishable-key",
+  "AI_API_KEY": "your-groq-or-openai-api-key"
+}

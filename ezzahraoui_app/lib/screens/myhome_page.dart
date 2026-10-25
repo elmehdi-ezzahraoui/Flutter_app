@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_design.dart';
+import 'chatbot_page.dart';
 
 // Définition de la page de profil utilisateur (Widget sans état)
 class ProfilePage extends StatelessWidget {
@@ -33,6 +34,25 @@ class ProfilePage extends StatelessWidget {
           'Mon Profil',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.smart_toy_rounded, color: Colors.white),
+              tooltip: 'Assistant Chatbot IA',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChatbotPage()),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       // Corps de la page avec défilement vertical
       body: SingleChildScrollView(
