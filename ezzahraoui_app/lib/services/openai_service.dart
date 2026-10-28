@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 class ChatMessage {
@@ -6,11 +7,8 @@ class ChatMessage {
   final bool isUser;
   final DateTime timestamp;
 
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  ChatMessage({required this.text, required this.isUser, DateTime? timestamp})
+    : timestamp = timestamp ?? DateTime.now();
 }
 
 class OpenAiService {
@@ -20,6 +18,7 @@ class OpenAiService {
   // Instance partagée (Singleton)
   static final OpenAiService instance = OpenAiService._internal();
 
+  //Stockage dans l'instance
   OpenAiService._internal() {
     _apiKey = _defaultApiKey;
     _resetHistory();
@@ -69,10 +68,7 @@ class OpenAiService {
       );
     }
 
-    _apiMessages.add({
-      'role': 'user',
-      'content': trimmed,
-    });
+    _apiMessages.add({'role': 'user', 'content': trimmed});
 
     final endpoint = isGroq
         ? 'https://api.groq.com/openai/v1/chat/completions'
@@ -106,10 +102,7 @@ class OpenAiService {
           final content = (message?['content'] as String?)?.trim() ?? '';
 
           // Ajouter la réponse du bot à l'historique
-          _apiMessages.add({
-            'role': 'assistant',
-            'content': content,
-          });
+          _apiMessages.add({'role': 'assistant', 'content': content});
 
           return content;
         }
@@ -139,7 +132,9 @@ class OpenAiService {
               'Veuillez patienter un instant avant de réessayer.',
             );
           } else {
-            throw Exception('Erreur $providerName (${response.statusCode}) : $rawMsg');
+            throw Exception(
+              'Erreur $providerName (${response.statusCode}) : $rawMsg',
+            );
           }
         } catch (e) {
           if (e is Exception) rethrow;
