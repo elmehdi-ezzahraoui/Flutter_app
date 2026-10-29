@@ -1,6 +1,11 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../services/openai_service.dart';
+import '../services/report_service.dart';
+import '../services/notification_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_design.dart';
 
 class ChatbotPage extends StatefulWidget {
@@ -10,30 +15,40 @@ class ChatbotPage extends StatefulWidget {
   State<ChatbotPage> createState() => _ChatbotPageState();
 }
 
-class _ChatbotPageState extends State<ChatbotPage> {
+class _ChatbotPageState extends State<ChatbotPage>
+    with TickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final OpenAiService _openAiService = OpenAiService.instance;
+  final ReportService _reportService = ReportService.instance;
+  final LocationService _locationService = LocationService.instance;
 
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
   String? _lastError;
+  bool _isCreatingReport = false;
 
   final List<String> _quickSuggestions = [
-    '👋 Présente-toi et tes fonctionnalités',
-    '💻 Comment optimiser les performances Flutter ?',
-    '🎓 Explique-moi le patron MVC en informatique',
-    '🚀 Propose-moi une idée de projet mobile',
+    '🗑️ Il y a un dépôt sauvage ici',
+    '♻️ Où recycler mes piles usagées ?',
+    '🧴 Le plastique n°5 se recycle ?',
+    '🌊 Zone polluée près de chez moi',
+    '🚯 Poubelle débordante signaler',
+    '✅ Comment fonctionne EcoCity ?',
   ];
 
   @override
   void initState() {
     super.initState();
-    // Message de bienvenue initial
     _messages.add(
       ChatMessage(
         text:
-            'Bonjour El-Mehdi ! 👋\nJe suis votre assistant IA personnel. Comment puis-je vous aider aujourd\'hui ?',
+            '🌿 Bonjour ! Je suis **EcoBot**, votre assistant écologique.\n\n'
+            'Je peux vous aider à :\n'
+            '• 📍 **Signaler** un dépôt sauvage ou une zone polluée\n'
+            '• ♻️ **Guider** sur le tri et le recyclage\n'
+            '• 🗺️ **Afficher** les points de collecte sur la carte\n\n'
+            'Décrivez simplement le problème que vous observez !',
         isUser: false,
       ),
     );
@@ -63,9 +78,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     final trimmed = query.trim();
     if (trimmed.isEmpty || _isLoading) return;
 
-    if (prefilledText == null) {
-      _textController.clear();
-    }
+    if (prefilledText == null) _textController.clear();
 
     setState(() {
       _lastError = null;
@@ -75,24 +88,96 @@ class _ChatbotPageState extends State<ChatbotPage> {
     _scrollToBottom();
 
     try {
-      final reply = await _openAiService.sendMessage(trimmed);
+      final reply = await _openAiService.sendMessageEco(trimmed);
+
       if (mounted) {
         setState(() {
-          _messages.add(ChatMessage(text: reply, isUser: false));
+          _messages.add(reply);
           _isLoading = false;
         });
         _scrollToBottom();
+
+        // Si le bot a détecté un signalement, on le crée automatiquement
+        if (reply.reportDraft != null) {
+          await _createReportFromDraft(reply.reportDraft!);
+        }
       }
     } catch (e) {
       if (mounted) {
-        final errorText = e.toString().replaceFirst('Exception: ', '');
         setState(() {
-          _lastError = errorText;
+          _lastError = e.toString().replaceFirst('Exception: ', '');
           _isLoading = false;
         });
         _scrollToBottom();
       }
     }
+  }
+
+  Future<void> _createReportFromDraft(ReportDraft draft) async {
+    if (_isCreatingReport) return;
+    setState(() => _isCreatingReport = true);
+
+    try {
+      // Récupération GPS
+      double lat = 33.589886;
+      double lng = -7.603869;
+      try {
+        final loc = await _locationService.getCurrentLocation();
+        lat = loc.latitude;
+        lng = loc.longitude;
+      } catch (_) {}
+
+      final newReport = await _reportService.create(
+        title: draft.title,
+        description: draft.description,
+        category: draft.category,
+        latitude: lat,
+        longitude: lng,
+      );
+
+      await NotificationService.instance.notifyNewReport(
+        newReport.id,
+        newReport.title,
+      );
+
+      if (mounted) {
+        _showSuccessSnack('📍 Signalement ajouté sur la carte !');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnack('Impossible de créer le signalement : $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isCreatingReport = false);
+    }
+  }
+
+  void _showSuccessSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg)),
+          ],
+        ),
+        backgroundColor: const Color(0xFF22C55E),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showErrorSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _copyToClipboard(String text) {
@@ -111,9 +196,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Effacer la conversation'),
         content: const Text(
-          'Voulez-vous vraiment réinitialiser cette discussion ?',
+          'Voulez-vous vraiment réinitialiser cette discussion avec EcoBot ?',
         ),
         actions: [
           TextButton(
@@ -124,6 +210,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -134,7 +222,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 _messages.add(
                   ChatMessage(
                     text:
-                        'Discussion réinitialisée. En quoi puis-je vous être utile ? 😊',
+                        '🌿 Conversation réinitialisée. En quoi puis-je vous aider ? 😊',
                     isUser: false,
                   ),
                 );
@@ -147,7 +235,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,44 +243,65 @@ class _ChatbotPageState extends State<ChatbotPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Liste des messages
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                itemCount:
-                    _messages.length +
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                itemCount: _messages.length +
                     (_isLoading ? 1 : 0) +
                     (_lastError != null ? 1 : 0),
                 itemBuilder: (context, index) {
-                  // Message standard
                   if (index < _messages.length) {
-                    final msg = _messages[index];
-                    return _buildMessageBubble(msg);
+                    return _buildMessageBubble(_messages[index]);
                   }
-
-                  // Indicateur de chargement
                   if (_isLoading && index == _messages.length) {
                     return _buildLoadingBubble();
                   }
-
-                  // Message d'erreur s'il existe
                   if (_lastError != null) {
                     return _buildErrorCard(_lastError!);
                   }
-
                   return const SizedBox.shrink();
                 },
               ),
             ),
 
-            // Suggestions rapides (visibles si début de discussion)
-            if (_messages.length <= 2 && !_isLoading) _buildSuggestionsBar(),
+            // Indicateur de création de signalement
+            if (_isCreatingReport)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF86EFAC)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF22C55E),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Ajout du signalement sur la carte…',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF15803D),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-            // Zone de saisie
+            if (_messages.length <= 2 && !_isLoading) _buildSuggestionsBar(),
             _buildInputBar(),
           ],
         ),
@@ -208,7 +316,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [kPrimaryDark, kPrimary],
+            colors: [Color(0xFF065F46), Color(0xFF059669)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -227,22 +335,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [kAccent, Colors.white],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 6,
-                    ),
-                  ],
+                  color: Colors.white.withOpacity(0.2),
+                  border: Border.all(
+                      color: Colors.white.withOpacity(0.4), width: 1.5),
                 ),
-                child: const Icon(
-                  Icons.smart_toy_rounded,
-                  color: kPrimaryDark,
-                  size: 24,
+                child: const Center(
+                  child: Text('🌿', style: TextStyle(fontSize: 20)),
                 ),
               ),
               Positioned(
@@ -252,7 +350,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
                   width: 12,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
+                    color: const Color(0xFF86EFAC),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
@@ -267,7 +365,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Assistant IA',
+                  'EcoBot 🌍',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -276,8 +374,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 ),
                 Text(
                   _openAiService.isGroq
-                      ? 'Groq (GPT OSS 120B) • Ultra Rapide'
-                      : 'OpenAI (GPT-4o Mini) • En ligne',
+                      ? 'Groq IA • Signalement Intelligent'
+                      : 'OpenAI • Signalement Intelligent',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Colors.white70,
@@ -302,6 +400,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
 
   Widget _buildMessageBubble(ChatMessage message) {
     final isUser = message.isUser;
+    final hasReport = message.reportDraft != null;
     final timeStr =
         '${message.timestamp.hour.toString().padLeft(2, '0')}:${message.timestamp.minute.toString().padLeft(2, '0')}';
 
@@ -315,88 +414,126 @@ class _ChatbotPageState extends State<ChatbotPage> {
           if (!isUser) ...[
             Container(
               margin: const EdgeInsets.only(right: 8, bottom: 4),
-              padding: const EdgeInsets.all(6),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: kPrimary.withOpacity(0.12),
+                color: const Color(0xFF059669).withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                size: 16,
-                color: kPrimary,
+              child: const Center(
+                child: Text('🌿', style: TextStyle(fontSize: 15)),
               ),
             ),
           ],
           Flexible(
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.78,
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                gradient: isUser
-                    ? const LinearGradient(
-                        colors: [kPrimaryDark, kPrimary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: isUser ? null : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isUser ? 18 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 18),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-                border: isUser
-                    ? null
-                    : Border.all(color: Colors.grey.withOpacity(0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SelectableText(
-                    message.text,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      height: 1.45,
-                      color: isUser ? Colors.white : const Color(0xFF1F2937),
+            child: Column(
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                // Badge signalement
+                if (hasReport)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: const Color(0xFFEF4444).withOpacity(0.3)),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isUser ? Colors.white60 : Colors.black38,
-                        ),
-                      ),
-                      if (!isUser) ...[
-                        const SizedBox(width: 8),
-                        InkWell(
-                          onTap: () => _copyToClipboard(message.text),
-                          child: const Icon(
-                            Icons.copy_rounded,
-                            size: 14,
-                            color: Colors.black38,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_rounded,
+                            color: Color(0xFFEF4444), size: 14),
+                        const SizedBox(width: 4),
+                        Text(
+                          '🔴 Signalement créé : ${message.reportDraft!.category}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFEF4444),
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.78,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: isUser
+                        ? const LinearGradient(
+                            colors: [Color(0xFF065F46), Color(0xFF059669)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          )
+                        : null,
+                    color: isUser ? null : Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isUser ? 18 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 18),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                    border: isUser
+                        ? null
+                        : Border.all(color: Colors.grey.withOpacity(0.15)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SelectableText(
+                        message.text,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          height: 1.5,
+                          color: isUser
+                              ? Colors.white
+                              : const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            timeStr,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isUser ? Colors.white60 : Colors.black38,
+                            ),
+                          ),
+                          if (!isUser) ...[
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: () => _copyToClipboard(message.text),
+                              child: const Icon(
+                                Icons.copy_rounded,
+                                size: 14,
+                                color: Colors.black38,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           if (isUser) ...[
@@ -404,13 +541,13 @@ class _ChatbotPageState extends State<ChatbotPage> {
               margin: const EdgeInsets.only(left: 8, bottom: 4),
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: kPrimary.withOpacity(0.12),
+                color: const Color(0xFF059669).withOpacity(0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.person_outline_rounded,
                 size: 16,
-                color: kPrimary,
+                color: Color(0xFF059669),
               ),
             ),
           ],
@@ -427,19 +564,19 @@ class _ChatbotPageState extends State<ChatbotPage> {
         children: [
           Container(
             margin: const EdgeInsets.only(right: 8, bottom: 4),
-            padding: const EdgeInsets.all(6),
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: kPrimary.withOpacity(0.12),
+              color: const Color(0xFF059669).withOpacity(0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.smart_toy_rounded,
-              size: 16,
-              color: kPrimary,
+            child: const Center(
+              child: Text('🌿', style: TextStyle(fontSize: 15)),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: const BorderRadius.only(
@@ -464,12 +601,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: kPrimary,
+                    color: Color(0xFF059669),
                   ),
                 ),
                 SizedBox(width: 10),
                 Text(
-                  'L\'assistant réfléchit...',
+                  'EcoBot analyse…',
                   style: TextStyle(
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
@@ -498,7 +635,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
         children: [
           const Row(
             children: [
-              Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+              Icon(Icons.error_outline_rounded,
+                  color: Colors.redAccent, size: 20),
               SizedBox(width: 8),
               Text(
                 'Erreur de communication',
@@ -533,7 +671,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
           final suggestion = _quickSuggestions[index];
           return ActionChip(
             backgroundColor: Colors.white,
-            side: BorderSide(color: kPrimary.withOpacity(0.25)),
+            side: BorderSide(
+                color: const Color(0xFF059669).withOpacity(0.3)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
@@ -541,7 +680,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
               suggestion,
               style: const TextStyle(
                 fontSize: 12,
-                color: kPrimaryDark,
+                color: Color(0xFF065F46),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -571,8 +710,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
+                color: const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                    color: const Color(0xFF059669).withOpacity(0.2)),
               ),
               child: TextField(
                 controller: _textController,
@@ -580,8 +721,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 minLines: 1,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Posez votre question...',
-                  hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+                  hintText: 'Décrivez un problème ou posez une question…',
+                  hintStyle:
+                      TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
                   border: InputBorder.none,
                 ),
                 onSubmitted: (_) => _handleSendMessage(),
@@ -593,7 +735,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [kPrimary, kPrimaryDark],
+                colors: [Color(0xFF065F46), Color(0xFF059669)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
