@@ -879,7 +879,6 @@ class _ReportListTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -889,51 +888,56 @@ class _ReportListTile extends StatelessWidget {
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        onTap: onTap,
-        leading: Text(report.status.emoji,
-            style: const TextStyle(fontSize: 24)),
-        title: Text(
-          report.title,
-          style: const TextStyle(
-              fontSize: 14, fontWeight: FontWeight.bold),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          report.category,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-        ),
-        trailing: InkWell(
-          onTap: onLike,
-          borderRadius: BorderRadius.circular(10),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isLiked ? const Color(0xFFEF4444) : const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                  size: 14,
-                  color: isLiked ? Colors.white : const Color(0xFFEF4444),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${report.upvotes}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          onTap: onTap,
+          leading: Text(report.status.emoji,
+              style: const TextStyle(fontSize: 24)),
+          title: Text(
+            report.title,
+            style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: Text(
+            report.category,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+          ),
+          trailing: InkWell(
+            onTap: onLike,
+            borderRadius: BorderRadius.circular(10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isLiked ? const Color(0xFFEF4444) : const Color(0xFFFEE2E2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+                    size: 14,
                     color: isLiked ? Colors.white : const Color(0xFFEF4444),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    '${report.upvotes}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isLiked ? Colors.white : const Color(0xFFEF4444),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

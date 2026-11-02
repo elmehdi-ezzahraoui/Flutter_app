@@ -62,7 +62,13 @@ class OpenAiService {
   String get providerName => isGroq ? 'Groq' : 'OpenAI';
 
   String get modelName =>
-      isGroq ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'gpt-4o-mini';
+      isGroq ? 'openai/gpt-oss-120b' : 'gpt-4o-mini';
+
+  static const List<String> _groqFallbackModels = [
+    'openai/gpt-oss-120b',
+    'openai/gpt-oss-20b',
+    'qwen/qwen3.8-27b',
+  ];
 
   final List<Map<String, String>> _apiMessages = [];
 
@@ -112,42 +118,55 @@ Tu réponds TOUJOURS en français. Sois concis, utile, et engageant.''',
         ? 'https://api.groq.com/openai/v1/chat/completions'
         : 'https://api.openai.com/v1/chat/completions';
 
+    final modelsToTry = isGroq ? _groqFallbackModels : [modelName];
+
     try {
-      final response = await http.post(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Authorization': 'Bearer $_apiKey',
-        },
-        body: jsonEncode({
-          'model': modelName,
-          'messages': _apiMessages,
-          'temperature': 0.6,
-        }),
-      );
+      http.Response? lastResponse;
+      String? lastResponseString;
 
-      final responseString = utf8.decode(response.bodyBytes);
+      for (final m in modelsToTry) {
+        final response = await http.post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': 'Bearer $_apiKey',
+          },
+          body: jsonEncode({
+            'model': m,
+            'messages': _apiMessages,
+            'temperature': 0.6,
+          }),
+        );
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(responseString) as Map<String, dynamic>;
-        final choices = data['choices'] as List<dynamic>?;
-        if (choices != null && choices.isNotEmpty) {
-          final content =
-              (choices[0]['message']?['content'] as String?)?.trim() ?? '';
-          _apiMessages.add({'role': 'assistant', 'content': content});
+        final responseString = utf8.decode(response.bodyBytes);
+        lastResponse = response;
+        lastResponseString = responseString;
 
-          return _parseResponse(content);
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final data = jsonDecode(responseString) as Map<String, dynamic>;
+          final choices = data['choices'] as List<dynamic>?;
+          if (choices != null && choices.isNotEmpty) {
+            final content =
+                (choices[0]['message']?['content'] as String?)?.trim() ?? '';
+            _apiMessages.add({'role': 'assistant', 'content': content});
+
+            return _parseResponse(content);
+          }
+          return ChatMessage(text: 'Aucune réponse reçue.', isUser: false);
         }
-        return ChatMessage(text: 'Aucune réponse reçue.', isUser: false);
-      } else {
-        if (_apiMessages.isNotEmpty &&
-            _apiMessages.last['role'] == 'user') {
-          _apiMessages.removeLast();
+
+        // Si le modèle n'existe pas (404), on tente le suivant dans la liste de secours
+        if (response.statusCode == 404 && m != modelsToTry.last) {
+          continue;
         }
-        _handleApiError(response.statusCode, responseString);
-        // unreachable but Dart needs it
-        throw Exception('Erreur API inconnue');
+        break;
       }
+
+      if (_apiMessages.isNotEmpty && _apiMessages.last['role'] == 'user') {
+        _apiMessages.removeLast();
+      }
+      _handleApiError(lastResponse?.statusCode ?? 500, lastResponseString ?? '');
+      throw Exception('Erreur API inconnue');
     } catch (e) {
       if (_apiMessages.isNotEmpty && _apiMessages.last['role'] == 'user') {
         _apiMessages.removeLast();

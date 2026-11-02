@@ -161,6 +161,10 @@ class _EcoWebMapViewState extends State<_EcoWebMapView> {
     const userLat = $lat;
     const userLng = $lng;
 
+    function notifyEco(type, id) {
+      window.parent.postMessage(JSON.stringify({ type: type, id: id }), '*');
+    }
+
     // Centre sur la moyenne des marqueurs ou sur l'utilisateur
     let centerLat = userLat, centerLng = userLng;
     if (markers.length > 0) {
@@ -205,8 +209,8 @@ class _EcoWebMapViewState extends State<_EcoWebMapView> {
       if (r.description) popupContent += '<div style="margin:0 0 10px 0;font-size:12px;color:#4B5563;line-height:1.4;">' + r.description + '</div>';
       
       popupContent += '<div style="display:flex;gap:8px;margin-top:10px;">';
-      popupContent += '<button onclick="window.parent.postMessage(JSON.stringify({type:\'report_like\',id:\'' + r.id + '\'}),\'*\');" style="flex:1;cursor:pointer;background:#EF4444;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:4px;box-shadow:0 2px 6px rgba(239,68,68,0.35);">👍 Voter (' + r.upvotes + ')</button>';
-      popupContent += '<button onclick="window.parent.postMessage(JSON.stringify({type:\'report_detail\',id:\'' + r.id + '\'}),\'*\');" style="cursor:pointer;background:#F3F4F6;color:#374151;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;">Détails</button>';
+      popupContent += '<button onclick="notifyEco(&quot;report_like&quot;, &quot;' + r.id + '&quot;)" style="flex:1;cursor:pointer;background:#EF4444;color:white;border:none;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:bold;display:inline-flex;align-items:center;justify-content:center;gap:4px;box-shadow:0 2px 6px rgba(239,68,68,0.35);">👍 Voter (' + r.upvotes + ')</button>';
+      popupContent += '<button onclick="notifyEco(&quot;report_detail&quot;, &quot;' + r.id + '&quot;)" style="cursor:pointer;background:#F3F4F6;color:#374151;border:1px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:12px;font-weight:600;">Détails</button>';
       popupContent += '</div>';
       popupContent += '</div>';
 
@@ -215,7 +219,7 @@ class _EcoWebMapViewState extends State<_EcoWebMapView> {
         .bindPopup(popupContent, { maxWidth: 280 });
 
       m.on('click', function() {
-        window.parent.postMessage(JSON.stringify({type: 'report_tap', id: r.id}), '*');
+        notifyEco('report_tap', r.id);
       });
     });
 

@@ -190,7 +190,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: notif.isRead ? Colors.white : const Color(0xFFECFDF5),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: notif.isRead ? const Color(0xFFE5E7EB) : const Color(0xFF6EE7B7),
@@ -203,44 +202,49 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ),
             ],
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            leading: _buildIcon(notif.type),
-            title: Text(
-              notif.title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: notif.isRead ? FontWeight.normal : FontWeight.bold,
-                color: const Color(0xFF111827),
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (notif.body != null && notif.body!.isNotEmpty)
-                  Text(
-                    notif.body!,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatDate(notif.createdAt),
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+          child: Material(
+            color: notif.isRead ? Colors.white : const Color(0xFFECFDF5),
+            borderRadius: BorderRadius.circular(14),
+            clipBehavior: Clip.antiAlias,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              leading: _buildIcon(notif.type),
+              title: Text(
+                notif.title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: notif.isRead ? FontWeight.normal : FontWeight.bold,
+                  color: const Color(0xFF111827),
                 ),
-              ],
-            ),
-            trailing: notif.isRead
-                ? null
-                : Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF059669),
-                      shape: BoxShape.circle,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (notif.body != null && notif.body!.isNotEmpty)
+                    Text(
+                      notif.body!,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDate(notif.createdAt),
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
                   ),
+                ],
+              ),
+              trailing: notif.isRead
+                  ? null
+                  : Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF059669),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+            ),
           ),
         ),
       ),
