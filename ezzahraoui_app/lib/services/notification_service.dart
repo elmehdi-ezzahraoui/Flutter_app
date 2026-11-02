@@ -142,4 +142,18 @@ class NotificationService {
       }
     }
   }
+
+  // Notifier du changement de statut d'un signalement
+  Future<void> notifyStatusChanged(String reportId, String reportTitle, dynamic newStatus) async {
+    try {
+      final isResolu = newStatus.toString().contains('resolu');
+      await _client.from('notifications').insert({
+        'type': 'status_change',
+        'title': isResolu ? '🟢 Signalement résolu !' : '🟠 Signalement en cours',
+        'body': 'Le signalement "$reportTitle" a été mis à jour par l\'équipe.',
+        'report_id': reportId,
+        'is_read': false,
+      });
+    } catch (_) {}
+  }
 }

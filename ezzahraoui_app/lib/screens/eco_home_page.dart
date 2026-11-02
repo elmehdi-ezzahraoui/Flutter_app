@@ -33,6 +33,9 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
   final Set<String> _likedReportIds = {};
   int get _unreadCount => _notifications.where((n) => !n.isRead).length;
 
+  String _userRole = 'citizen';
+  bool get _isWorker => _userRole == 'worker';
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +45,10 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
   }
 
   Future<void> _loadInitialData() async {
+    try {
+      final role = await const AuthService().getUserRole();
+      if (mounted) setState(() => _userRole = role);
+    } catch (_) {}
     try {
       final reports = await _reportService.fetchAll();
       if (mounted) setState(() => _reports = reports);
@@ -124,9 +131,36 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
       builder: (ctx) => ReportDetailSheet(
         report: report,
         isLiked: _likedReportIds.contains(report.id),
+        isWorker: _isWorker,
         onUpvote: () => _upvote(report),
         onStatusChange: (s) async {
-          await _reportService.updateStatus(report.id, s);
+          final oldStatus = report.status;
+          setState(() {
+            final idx = _reports.indexWhere((r) => r.id == report.id);
+            if (idx >= 0) {
+              _reports[idx] = _reports[idx].copyWith(status: s);
+            }
+          });
+          try {
+            await _reportService.updateStatus(report.id, s);
+            final updated = await _reportService.fetchAll();
+            if (mounted) setState(() => _reports = updated);
+          } catch (e) {
+            if (mounted) {
+              setState(() {
+                final idx = _reports.indexWhere((r) => r.id == report.id);
+                if (idx >= 0) {
+                  _reports[idx] = _reports[idx].copyWith(status: oldStatus);
+                }
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Erreur Supabase : $e'),
+                  backgroundColor: const Color(0xFFDC2626),
+                ),
+              );
+            }
+          }
         },
       ),
     );
@@ -260,17 +294,49 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Bonjour, $name 👋',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    'Bonjour, $name 👋',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _isWorker
+                                        ? const Color(0xFFF97316)
+                                        : const Color(0xFF10B981),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.4),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _isWorker ? '👷 Agent' : '🌱 Citoyen',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const Text(
-                              'Contribuez à une ville plus propre',
-                              style: TextStyle(
+                            const SizedBox(height: 2),
+                            Text(
+                              _isWorker
+                                  ? 'Équipe de nettoyage et intervention'
+                                  : 'Contribuez à une ville plus propre',
+                              style: const TextStyle(
                                   color: Colors.white70, fontSize: 13),
                             ),
                           ],
@@ -650,13 +716,36 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'EcoCity',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'EcoCity',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _isWorker
+                            ? const Color(0xFFF97316)
+                            : const Color(0xFF10B981),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _isWorker ? '👷 Agent' : '🌱 Citoyen',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const Text(
                   '🌿 Plateforme citoyenne écologique',
@@ -713,53 +802,6 @@ class _EcoCityHomePageState extends State<EcoCityHomePage> {
                 context,
                 MaterialPageRoute(builder: (_) => const EcoMapPage()),
               );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.add_location_alt_rounded,
-                color: Color(0xFFEF4444)),
-            title: const Text('Nouveau Signalement'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ReportFormPage(
-                      initialLat: 33.589886, initialLng: -7.603869),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.notifications_rounded,
-                color: Color(0xFFF59E0B)),
-            title: const Text('Notifications'),
-            trailing: _unreadCount > 0
-                ? Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '$_unreadCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : null,
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsPage()),
-              );
-              final notifs = await _notifService.fetchAll();
-              if (mounted) setState(() => _notifications = notifs);
             },
           ),
           const Divider(),

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/report_model.dart';
+import '../services/auth_service.dart';
 import '../services/report_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_design.dart';
 import '../widgets/eco_map_view.dart';
 import 'report_form_page.dart';
@@ -28,6 +30,9 @@ class _EcoMapPageState extends State<EcoMapPage>
   double _userLat = 33.589886;
   double _userLng = -7.603869;
 
+  String _userRole = 'citizen';
+  bool get _isWorker => _userRole == 'worker';
+
   ReportStatus? _filterStatus; // null = tous
   bool _isLoading = true;
 
@@ -37,9 +42,15 @@ class _EcoMapPageState extends State<EcoMapPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadUserRole();
     _loadLocation();
     _loadInitialReports();
     _subscribeRealtime();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await const AuthService().getUserRole();
+    if (mounted) setState(() => _userRole = role);
   }
 
   @override
@@ -129,12 +140,59 @@ class _EcoMapPageState extends State<EcoMapPage>
   }
 
   Future<void> _updateStatus(ReportModel report, ReportStatus newStatus) async {
+    final oldStatus = report.status;
+    // Mise à jour optimiste locale immédiate pour rafraîchir la carte Leaflet sans délai
+    setState(() {
+      final idx = _reports.indexWhere((r) => r.id == report.id);
+      if (idx >= 0) {
+        _reports[idx] = _reports[idx].copyWith(status: newStatus);
+      }
+    });
+
     try {
       await _reportService.updateStatus(report.id, newStatus);
+      NotificationService.instance.notifyStatusChanged(
+        report.id,
+        report.title,
+        newStatus,
+      );
+
+      final fresh = await _reportService.fetchAll();
+      if (mounted) {
+        setState(() => _reports = fresh);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Text(newStatus.emoji, style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Statut changé en "${newStatus.label}"'),
+                ),
+              ],
+            ),
+            backgroundColor: newStatus == ReportStatus.resolu
+                ? const Color(0xFF15803D)
+                : const Color(0xFFEA580C),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
+        // En cas d'erreur ou blocage RLS Supabase, restauration de l'état
+        setState(() {
+          final idx = _reports.indexWhere((r) => r.id == report.id);
+          if (idx >= 0) {
+            _reports[idx] = _reports[idx].copyWith(status: oldStatus);
+          }
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur mise à jour : $e')),
+          SnackBar(
+            content: Text('Erreur Supabase : $e'),
+            backgroundColor: const Color(0xFFDC2626),
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
@@ -316,6 +374,27 @@ class _EcoMapPageState extends State<EcoMapPage>
         ],
       ),
       actions: [
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(right: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: _isWorker
+                  ? const Color(0xFFF97316)
+                  : Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withOpacity(0.35)),
+            ),
+            child: Text(
+              _isWorker ? '👷 Agent' : '🌱 Citoyen',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
         IconButton(
           icon: Icon(
             _showListView ? Icons.map_rounded : Icons.view_list_rounded,
@@ -546,6 +625,7 @@ class _EcoMapPageState extends State<EcoMapPage>
       builder: (ctx) => ReportDetailSheet(
         report: report,
         isLiked: _likedReportIds.contains(report.id),
+        isWorker: _isWorker,
         onUpvote: () => _upvote(report),
         onStatusChange: (s) => _updateStatus(report, s),
       ),
@@ -558,6 +638,7 @@ class _EcoMapPageState extends State<EcoMapPage>
 class ReportDetailSheet extends StatefulWidget {
   final ReportModel report;
   final bool isLiked;
+  final bool isWorker;
   final VoidCallback onUpvote;
   final void Function(ReportStatus) onStatusChange;
 
@@ -565,6 +646,7 @@ class ReportDetailSheet extends StatefulWidget {
     super.key,
     required this.report,
     this.isLiked = false,
+    this.isWorker = false,
     required this.onUpvote,
     required this.onStatusChange,
   });
@@ -710,56 +792,144 @@ class _ReportDetailSheetState extends State<ReportDetailSheet> {
           const SizedBox(height: 12),
 
           // Actions
-          Row(
-            children: [
-              // Like / Upvote
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _liked ? Colors.white : const Color(0xFFEF4444),
-                    backgroundColor: _liked ? const Color(0xFFEF4444) : Colors.transparent,
-                    side: const BorderSide(color: Color(0xFFFCA5A5)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  onPressed: _liked ? null : _handleLike,
-                  icon: Icon(
-                    _liked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                    size: 16,
-                  ),
-                  label: Text(
-                    '$_upvotes vote${_upvotes > 1 ? 's' : ''}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+          // 1. Bouton Voter (accessible à tous)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _liked ? Colors.white : const Color(0xFFEF4444),
+                backgroundColor: _liked ? const Color(0xFFEF4444) : Colors.transparent,
+                side: const BorderSide(color: Color(0xFFFCA5A5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              const SizedBox(width: 10),
-
-              // Changer le statut
-              if (report.status != ReportStatus.resolu)
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _nextStatusColor(report.status),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    onPressed: () {
-                      widget.onStatusChange(_nextStatus(report.status));
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                    label: Text(
-                      _nextStatusLabel(report.status),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-            ],
+              onPressed: _liked ? null : _handleLike,
+              icon: Icon(
+                _liked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+                size: 16,
+              ),
+              label: Text(
+                _liked
+                    ? 'Vous avez voté ($_upvotes)'
+                    : 'Voter pour ce signalement ($_upvotes)',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
+
+          // 2. Actions réservées aux WORKERS (Agents d'intervention)
+          if (widget.isWorker) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text('👷', style: TextStyle(fontSize: 16)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Actions Agent / Équipe de nettoyage',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: Color(0xFF065F46),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      // Bouton "En cours de traitement"
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: report.status == ReportStatus.en_cours
+                                ? const Color(0xFFEA580C)
+                                : const Color(0xFFF97316),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: report.status == ReportStatus.en_cours
+                              ? null
+                              : () {
+                                  widget.onStatusChange(ReportStatus.en_cours);
+                                  Navigator.pop(context);
+                                },
+                          icon: const Icon(Icons.handyman_rounded, size: 16),
+                          label: Text(
+                            report.status == ReportStatus.en_cours
+                                ? 'En cours'
+                                : 'En traitement',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Bouton "Résolu"
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: report.status == ReportStatus.resolu
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFF22C55E),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: report.status == ReportStatus.resolu
+                              ? null
+                              : () {
+                                  widget.onStatusChange(ReportStatus.resolu);
+                                  Navigator.pop(context);
+                                },
+                          icon: const Icon(Icons.check_circle_rounded, size: 16),
+                          label: Text(
+                            report.status == ReportStatus.resolu
+                                ? 'Résolu ✅'
+                                : 'Marquer résolu',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF9CA3AF)),
+                const SizedBox(width: 5),
+                Text(
+                  'Prise en charge et résolution gérées par les agents',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

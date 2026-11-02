@@ -64,10 +64,17 @@ class ReportService {
   // ─── Mise à jour du statut ───────────────────────────────────────────────────
 
   Future<void> updateStatus(String id, ReportStatus status) async {
-    await _client.from('reports').update({
-      'status': status.name,
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', id);
+    try {
+      await _client.from('reports').update({
+        'status': status.name,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+    } catch (_) {
+      // Fallback si la colonne updated_at n'est pas présente
+      await _client.from('reports').update({
+        'status': status.name,
+      }).eq('id', id);
+    }
   }
 
   // ─── Like / Upvote ─────────────────────────────────────────────────────────

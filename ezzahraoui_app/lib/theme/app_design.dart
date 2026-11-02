@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-// --- Couleurs Globales ---
-const kPrimary = Color(0xFF4F46E5);
-const kPrimaryDark = Color(0xFF1E1B4B);
-const kAccent = Color(0xFF06B6D4);
-const kBackground = Color(0xFFF4F6FB);
+// --- Couleurs Globales (Thème EcoCity) ---
+const kPrimary = Color(0xFF059669);      // Vert Émeraude principal
+const kPrimaryDark = Color(0xFF064E3B);  // Vert Forêt profond
+const kAccent = Color(0xFF10B981);       // Vert menthe éclatant
+const kBackground = Color(0xFFF9FAFB);   // Fond clair épuré
 
 // --- Animation d'entrée ---
 class AnimatedEntry extends StatelessWidget {
@@ -31,9 +31,9 @@ class AnimatedEntry extends StatelessWidget {
   }
 }
 
-// --- En-tête avec Image/Avatar ---
+// --- En-tête EcoCity avec Logo / Avatar ---
 class HeaderWidget extends StatelessWidget {
-  final String imagePath;
+  final String? imagePath;
   final String title;
   final String subtitle;
   final double imageSize;
@@ -41,10 +41,10 @@ class HeaderWidget extends StatelessWidget {
 
   const HeaderWidget({
     super.key,
-    required this.imagePath,
+    this.imagePath,
     required this.title,
     required this.subtitle,
-    this.imageSize = 130,
+    this.imageSize = 100,
     this.fit = BoxFit.contain,
   });
 
@@ -53,24 +53,24 @@ class HeaderWidget extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
-        bottom: 32,
+        top: MediaQuery.of(context).padding.top + 24,
+        bottom: 28,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [kPrimaryDark, kPrimary],
+          colors: [Color(0xFF064E3B), Color(0xFF059669)],
         ),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(40),
-          bottomRight: Radius.circular(40),
+          bottomLeft: Radius.circular(36),
+          bottomRight: Radius.circular(36),
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x404F46E5),
-            blurRadius: 24,
-            offset: Offset(0, 10),
+            color: Color(0x33059669),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -78,64 +78,45 @@ class HeaderWidget extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [kAccent, Colors.white],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                color: Colors.white.withOpacity(0.18),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 2.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 20,
-                    offset: Offset(0, 8),
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Container(
-                padding: const EdgeInsets.all(3),
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-                child: ClipOval(
-                  child: Image.asset(
-                    imagePath,
-                    height: imageSize,
-                    width: imageSize,
-                    fit: fit,
-                  ),
-                ),
+              child: const Center(
+                child: Text('🌿', style: TextStyle(fontSize: 36)),
               ),
             ),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              style: const TextStyle(
+            const SizedBox(height: 14),
+            const Text(
+              'EcoCity',
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 26,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 0.3,
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withOpacity(0.25)),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
               ),
-              child: Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

@@ -51,14 +51,13 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kBackground,
       body: SingleChildScrollView(
         child: Column(
           children: [
             const HeaderWidget(
-              imagePath: 'assets/logo-emsi.webp',
-              title: 'Bienvenue',
-              subtitle: 'Connectez-vous à votre espace',
-              imageSize: 112,
+              title: 'EcoCity',
+              subtitle: 'Connectez-vous à votre espace citoyen ou agent',
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
@@ -105,35 +104,57 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         autofillHints: const [AutofillHints.password],
-                        decoration:
-                            _inputDecoration(
-                              'Mot de passe',
-                              Icons.lock_outline_rounded,
-                            ).copyWith(
-                              suffixIcon: IconButton(
-                                tooltip: _obscurePassword
-                                    ? 'Afficher le mot de passe'
-                                    : 'Masquer le mot de passe',
-                                onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                ),
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                ),
-                              ),
+                        decoration: _inputDecoration(
+                          'Mot de passe',
+                          Icons.lock_outline_rounded,
+                        ).copyWith(
+                          suffixIcon: IconButton(
+                            tooltip: _obscurePassword
+                                ? 'Afficher le mot de passe'
+                                : 'Masquer le mot de passe',
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
                             ),
-                        validator: (value) => value == null || value.isEmpty
-                            ? 'Saisissez votre mot de passe.'
-                            : null,
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Saisissez votre mot de passe.';
+                          }
+                          return null;
+                        },
                       ),
                       if (_errorMessage != null) ...[
                         const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline_rounded,
+                                  color: Color(0xFFDC2626), size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFDC2626),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                       const SizedBox(height: 24),
@@ -141,10 +162,12 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: _isSubmitting ? null : _signIn,
                         style: FilledButton.styleFrom(
                           backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
+                          elevation: 2,
                         ),
                         child: _isSubmitting
                             ? const SizedBox(
@@ -155,7 +178,13 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Se connecter'),
+                            : const Text(
+                                'Se connecter',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 16),
                       TextButton(
@@ -166,7 +195,13 @@ class _LoginPageState extends State<LoginPage> {
                                   builder: (_) => const SignupPage(),
                                 ),
                               ),
-                        child: const Text('Pas encore de compte ? S’inscrire'),
+                        child: const Text(
+                          'Pas encore de compte ? S’inscrire',
+                          style: TextStyle(
+                            color: kPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -189,6 +224,10 @@ class _LoginPageState extends State<LoginPage> {
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: kPrimary, width: 2),
       ),
     );
   }
